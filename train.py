@@ -1,10 +1,13 @@
 import lightgbm as lgb
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from sklearn.model_selection import StratifiedKFold
 
 
 def run_lgb(params, X_train, y_train, X_test,
-            n_splits=10, num_rounds=60000, early_stop=500):
+            n_splits=10, num_rounds=60000, early_stop=500, plot=True):
     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=1337)
 
     oof_train = np.zeros((X_train.shape[0]))
@@ -26,12 +29,23 @@ def run_lgb(params, X_train, y_train, X_test,
         valid_pred = model.predict(valid_fold_x, num_iteration=model.best_iteration)
         test_pred = model.predict(X_test, num_iteration=model.best_iteration)
 
-        oof_train[valid_idx] = valid_pred
+        oof_train[val_idx] = valid_pred
         oof_test += test_pred / n_splits
         feature_importances += model.feature_importance(importance_type='gain') / n_splits
         
     print('feature importances:')
     for i in np.argsort(feature_importances):
         print(f'\t{model.feature_name()[i]:35s}: {feature_importances[i]:.1f}')
+    
+    if plot:
+        feature_imp = pd.DataFrame(sorted(zip(feature_importances, model.feature_name())),
+                                   columns=['value', 'feature'])
+        
+        plt.figure(figsize=(22, 44))
+        sns.barplot(x='value', y='feature',
+                    data=feature_imp.sort_values(by='value', ascending=False))
+        plt.title('LightGBM Feature Importances')
+        plt.tight_layout()
+        plt.show()
 
     return oof_train, oof_test
