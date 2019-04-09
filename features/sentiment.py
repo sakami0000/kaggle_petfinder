@@ -1,7 +1,7 @@
 from joblib import delayed, Parallel
 import pandas as pd
 
-from features.utils import open_json_file
+from .utils import open_json_file
 
 
 def parse_sentiment_file(file):

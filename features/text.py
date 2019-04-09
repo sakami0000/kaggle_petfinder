@@ -3,14 +3,15 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
-def extract_textual_features(X_text, n_components=16, seed=1337):
+def extract_textual_features(pet_ids, X_text, n_components=16, seed=1337):
     text_features = []
     
     for i in X_text.columns:
         print(f'generating features from: {i}')
         tfv = TfidfVectorizer(min_df=2, max_features=None,
-                              strip_accents='unicode', analyzer='word', token_pattern=r'(?u)\b\w+\b',
-                              ngram_range=(1, 3), use_idf=1, smooth_idf=1, sublinear_tf=1)
+                              strip_accents='unicode', analyzer='word',
+                              token_pattern=r'(?u)\b\w+\b', ngram_range=(1, 3),
+                              use_idf=1, smooth_idf=1, sublinear_tf=1)
         svd_ = TruncatedSVD(
             n_components=n_components, random_state=seed)
         
@@ -23,4 +24,5 @@ def extract_textual_features(X_text, n_components=16, seed=1337):
         text_features.append(svd_col)
         
     text_features = pd.concat(text_features, axis=1)
+    text_features['PetID'] = pet_ids
     return text_features

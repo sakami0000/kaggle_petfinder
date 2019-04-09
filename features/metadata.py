@@ -4,7 +4,7 @@ from joblib import delayed, Parallel
 import numpy as np
 import pandas as pd
 
-from features.utils import open_json_file
+from .utils import open_json_file
 
 
 def parse_metadata_file(file):
