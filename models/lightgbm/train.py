@@ -14,7 +14,7 @@ def run_lgb(params, X_train, y_train, X_test,
     oof_test = np.zeros((X_test.shape[0]))
     feature_importances = np.zeros((X_test.shape[1]))
 
-    for train_idx, valid_idx in kf.split(X_train, X_train['AdoptionSpeed'].values):
+    for train_idx, valid_idx in kf.split(X_train, y_train):
         train_fold_x = X_train.iloc[train_idx, :]
         train_fold_y = y_train[train_idx]
         valid_fold_x = X_train.iloc[valid_idx, :]
@@ -108,7 +108,7 @@ def run_lgb_binary(params, X_train, y_train, X_test,
     oof_test = np.zeros((X_test.shape[0]))
     feature_importances = np.zeros((X_test.shape[1]))
 
-    for train_idx, valid_idx in kf.split(X_train, X_train['AdoptionSpeed'].values):
+    for train_idx, valid_idx in kf.split(X_train, y_train):
         train_fold_x = X_train.iloc[train_idx, :]
         valid_fold_x = X_train.iloc[valid_idx, :]
 
