@@ -1,5 +1,12 @@
+import time
+
+import numpy as np
+from sklearn.base import BaseEstimator, RegressorMixin
 import torch
 from torch import nn
+
+from .layers import DenseModule
+from .utils import seed_torch
 
 
 class Net(nn.Module):
@@ -19,10 +26,10 @@ class Net(nn.Module):
         return out
 
 
-class MLPClassifier(BaseEstimator, ClassifierMixin):
+class MLPRegressor(BaseEstimator, RegressorMixin):
     def __init__(self, input_size, hidden_sizes=[64, 64],
                  activation='relu', dropout_rate=None,
-                 learning_rate=0.001, n_epochs=5, batch_size=64,
+                 learning_rate=0.01, n_epochs=5, batch_size=64,
                  device='cuda:0', random_state=None, verbose=False):
         self.model = Net(input_size=input_size,
                          hidden_sizes=hidden_sizes,
@@ -31,28 +38,30 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.device = torch.device(device)
-        self.verbose = verbose
+        self.verbose = int(verbose)
 
         self.loss_fn = nn.MSELoss(reduction='mean')
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
         self.scheduler = None
 
         seed_torch(random_state)
-        self.model.to(self.device)
+        self.model.to(device)
 
     def fit(self, X, y, X_valid=None, y_valid=None):
-        X = np.asarray(X)
-        y = np.asarray(y)
-        
+        X = np.array(X)
+        y = np.array(y)
+        X_valid = np.array(X_valid)
+        y_valid = np.array(y_valid)
+
         X_train = torch.tensor(X, dtype=torch.float32).to(self.device)
-        y_train = torch.tensor(y[:, np.newaxis], dtype=torch.float32).to(self.device)
+        y_train = torch.tensor(y, dtype=torch.float32).to(self.device)
 
         train = torch.utils.data.TensorDataset(X_train, y_train)
         train_loader = torch.utils.data.DataLoader(
             train, batch_size=self.batch_size, shuffle=True)
-            
+
         if self.verbose and X_valid is not None and y_valid is not None:
-            X_valid = torch.tensor(X_valid.values, dtype=torch.float32).to(self.device)
+            X_valid = torch.tensor(X_valid, dtype=torch.float32).to(self.device)
             y_valid = torch.tensor(y_valid[:, np.newaxis], dtype=torch.float32).to(self.device)
             
             valid = torch.utils.data.TensorDataset(X_valid, y_valid)
@@ -82,7 +91,7 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
                 self.optimizer.step()
                 avg_loss += loss.item() / len(train_loader)
 
-            if self.verbose:
+            if self.verbose and epoch % self.verbose == 0:
                 if valid_loader:
                     self.model.eval()
                     valid_preds = np.zeros(X_valid.shape[0])
@@ -93,22 +102,21 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
                             y_pred = self.model(x_batch).detach()
                             
                         avg_val_loss += self.loss_fn(y_pred, y_batch).item() / len(valid_loader)
-                        valid_preds[i * self.batch_size:(i + 1) * self.batch_size] = sigmoid(
-                            y_pred.cpu().numpy())[:, 0]
+                        valid_preds[i * self.batch_size:(i + 1) * self.batch_size] = y_pred.cpu().numpy().squeeze()
                     
                     elapsed_time = time.time() - start_time
                     print('Epoch {}/{} \t loss: {} \t valid loss: {} \t time: {:.1f}s'.format(
                         epoch + 1, self.n_epochs, avg_loss, avg_val_loss, elapsed_time))
-                
                 else:
                     elapsed_time = time.time() - start_time
                     print('Epoch {}/{} \t loss: {} \t time: {:.1f}s'.format(
                         epoch + 1, self.n_epochs, avg_loss, elapsed_time))
-        
-        return valid_preds
 
+        return valid_preds
+    
     def predict(self, X):
-        X = np.asarray(X)
+        X = np.array(X)
+
         X_test = torch.tensor(X, dtype=torch.float32).to(self.device)
         test = torch.utils.data.TensorDataset(X_test)
         test_loader = torch.utils.data.DataLoader(test, batch_size=self.batch_size, shuffle=False)
